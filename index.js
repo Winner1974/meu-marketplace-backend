@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 const app = express();
 const port = process.env.PORT || 10000;
 
-// Ligação segura à base de dados do Render usando a variável que configurámos
+// Ligação com o Banco de Dados
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -14,21 +14,19 @@ const pool = new Pool({
 
 app.use(express.json());
 
-// Função que cria as tabelas automaticamente se elas não existirem
+// Criar tabelas se não existirem
 async function iniciarBancoDeDados() {
   try {
-    // 1. Criar Tabela de Lojas
     await pool.query(`
       CREATE TABLE IF NOT EXISTS lojas (
         id SERIAL PRIMARY KEY,
         nome VARCHAR(100) NOT NULL,
-        nicho VARCHAR(50) NOT NULL, -- Tecnologia ou Moda
+        nicho VARCHAR(50) NOT NULL,
         data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log('✅ Tabela de lojas verificada/criada.');
 
-    // 2. Criar Tabela de Produtos (Ligada a uma loja)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS produtos (
         id SERIAL PRIMARY KEY,
@@ -40,23 +38,37 @@ async function iniciarBancoDeDados() {
       );
     `);
     console.log('✅ Tabela de produtos verificada/criada.');
-
   } catch (erro) {
-    console.error('❌ Erro ao criar as tabelas no banco de dados:', erro);
+    console.error('❌ Erro ao criar as tabelas:', erro);
   }
 }
-
-// Ativar a criação das tabelas ao iniciar
 iniciarBancoDeDados();
 
-// --- ROTAS DO NOSSO MARKETPLACE ---
+// --- ROTAS DO MARKETPLACE ---
 
-// Rota inicial de teste
+// Rota Inicial
 app.get('/', (req, res) => {
-  res.send('Servidor do Marketplace Ativo e Tabelas Prontas! 🚀');
+  res.send('Servidor do Marketplace Ativo e Pronto para Receber Dados! 🚀');
 });
 
-// Rota para listar todas as lojas
+// 1. REGISTAR UMA NOVA LOJA (POST)
+app.post('/lojas', async (req, res) => {
+  const { nome, nicho } = req.body;
+  
+  if (!nome || !nicho) {
+    return res.status(400).json({ error: 'Nome e nicho são obrigatórios!' });
+  }
+
+  try {
+    const query = 'INSERT INTO lojas (nome, nicho) VALUES ($1, $2) RETURNING *';
+    const resultado = await pool.query(query, [nome, nicho]);
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    res.status(500).json({ error: 'Erro ao registar a loja no banco de dados' });
+  }
+});
+
+// 2. LISTAR TODAS AS LOJAS (GET)
 app.get('/lojas', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM lojas ORDER BY id DESC');
@@ -66,7 +78,24 @@ app.get('/lojas', async (req, res) => {
   }
 });
 
-// Rota para listar todos os produtos
+// 3. CADASTRAR UM NOVO PRODUTO (POST)
+app.post('/produtos', async (req, res) => {
+  const { loja_id, nome, preco, descricao } = req.body;
+
+  if (!loja_id || !nome || !preco) {
+    return res.status(400).json({ error: 'Loja_id, nome e preco são obrigatórios!' });
+  }
+
+  try {
+    const query = 'INSERT INTO produtos (loja_id, nome, preco, descricao) VALUES ($1, $2, $3, $4) RETURNING *';
+    const resultado = await pool.query(query, [loja_id, nome, preco, descricao]);
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    res.status(500).json({ error: 'Erro ao cadastrar o produto' });
+  }
+});
+
+// 4. LISTAR TODOS OS PRODUTOS (GET)
 app.get('/produtos', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM produtos ORDER BY id DESC');
@@ -77,5 +106,5 @@ app.get('/produtos', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor a rodar perfeitamente na porta ${port}`);
+  console.log(`Servidor a rodar na porta ${port}`);
 });
