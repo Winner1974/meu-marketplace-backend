@@ -1,15 +1,12 @@
 {
   "name": "meu-marketplace-backend",
   "version": "1.0.0",
-  "description": "Servidor do meu aplicativo marketplace",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "pg": "^8.11.5"
-  },
-  "author": "",
-  "license": "ISC"
+    "express": "^4.17.1",
+    "pg": "^8.7.1"
+  }
 }
